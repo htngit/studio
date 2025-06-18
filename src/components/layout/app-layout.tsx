@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -28,6 +29,8 @@ import {
   LineChart,
   Store,
   PanelLeft,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -116,8 +119,10 @@ function SidebarNavigation() {
                               isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
                               className="justify-start text-sm"
                             >
-                              <subItem.icon className="h-4 w-4" />
-                              <span>{subItem.title}</span>
+                              <React.Fragment>
+                                <subItem.icon className="h-4 w-4" />
+                                <span>{subItem.title}</span>
+                              </React.Fragment>
                             </SidebarMenuButton>
                           </Link>
                         </TooltipTrigger>
@@ -141,8 +146,14 @@ function SidebarNavigation() {
                   <SidebarMenuButton
                     isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
                   >
-                    <item.icon className="h-5 w-5" />
-                    { (open || (isMobile && state === 'expanded')) && <span className="truncate">{item.title}</span> }
+                    <React.Fragment>
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      {(open || (isMobile && state === 'expanded')) && (
+                        <span className="truncate group-data-[collapsible=icon]:hidden">
+                          {item.title}
+                        </span>
+                      )}
+                    </React.Fragment>
                   </SidebarMenuButton>
                 </Link>
               </TooltipTrigger>
