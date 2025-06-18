@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from 'react';
@@ -40,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 
@@ -71,7 +71,10 @@ function SidebarNavigation() {
     if (activeParent) {
       setActiveAccordionItem(activeParent.title);
     } else {
-      setActiveAccordionItem(undefined);
+      const isActiveTopLevel = navItems.some(item => !item.subItems && pathname.startsWith(item.href));
+      if (isActiveTopLevel || !activeParent) {
+        setActiveAccordionItem(undefined);
+      }
     }
   }, [pathname]);
 
@@ -93,7 +96,8 @@ function SidebarNavigation() {
                 className={cn(
                   "flex w-full items-center overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground",
                   "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center",
-                  (pathname.startsWith(item.href) || item.subItems?.some(sub => pathname.startsWith(sub.href))) && activeAccordionItem === item.title && "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground"
+                  (item.subItems?.some(sub => pathname.startsWith(sub.href)) || (pathname.startsWith(item.href) && item.href !== '/')) && activeAccordionItem === item.title && 
+                  "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground"
                 )}
               >
                  <div className={cn("flex items-center gap-2 flex-grow min-w-0", {"justify-center": state === "collapsed" && !isMobile})}>
@@ -105,19 +109,24 @@ function SidebarNavigation() {
                 <SidebarMenu className="pt-1">
                   {item.subItems.map((subItem) => (
                     <SidebarMenuItem key={subItem.title}>
-                      <Link href={subItem.href} legacyBehavior passHref>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
-                          tooltip={{ content: subItem.title, side: 'right', align: 'center' }}
-                          className="justify-start text-sm"
-                        >
-                          <a>
-                            <subItem.icon className="h-4 w-4" />
-                            <span>{subItem.title}</span>
-                          </a>
-                        </SidebarMenuButton>
-                      </Link>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Link href={subItem.href} asChild>
+                            <SidebarMenuButton
+                              isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
+                              className="justify-start text-sm"
+                            >
+                              <subItem.icon className="h-4 w-4" />
+                              <span>{subItem.title}</span>
+                            </SidebarMenuButton>
+                          </Link>
+                        </TooltipTrigger>
+                        {(state === 'collapsed' && !isMobile && subItem.title) && (
+                          <TooltipContent side="right" align="center">
+                            {subItem.title}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
                     </SidebarMenuItem>
                   ))}
                 </SidebarMenu>
@@ -126,19 +135,23 @@ function SidebarNavigation() {
           </Accordion>
         ) : (
           <SidebarMenuItem key={item.title}>
-            <Link href={item.href} legacyBehavior passHref>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
-                tooltip={{ content: item.title, side: 'right', align: 'center' }}
-                className="justify-start"
-              >
-                <a>
-                  <item.icon className="h-5 w-5" />
-                  <span>{item.title}</span>
-                </a>
-              </SidebarMenuButton>
-            </Link>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href={item.href} asChild>
+                  <SidebarMenuButton
+                    isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
+                  >
+                    <item.icon className="h-5 w-5" />
+                    { (open || (isMobile && state === 'expanded')) && <span className="truncate">{item.title}</span> }
+                  </SidebarMenuButton>
+                </Link>
+              </TooltipTrigger>
+              {(state === 'collapsed' && !isMobile && item.title) && (
+                <TooltipContent side="right" align="center">
+                  {item.title}
+                </TooltipContent>
+              )}
+            </Tooltip>
           </SidebarMenuItem>
         )
       )}
@@ -200,7 +213,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                  </SidebarTrigger>
             </div>
             <div className="flex-1">
-                {/* Placeholder for breadcrumbs or page title */}
             </div>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
