@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
@@ -9,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { placeholderProducts, placeholderCategories } from "@/lib/placeholder-data";
 import type { Product, CartItem, Category } from "@/lib/types";
@@ -21,12 +23,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from '@/components/ui/badge';
+import { ToastAction } from '@/components/ui/toast';
 
-// Helper function to format currency (simplified)
+// Helper function to format currency
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount);
 };
-
 
 interface ProductCardProps {
   product: Product;
@@ -76,6 +79,7 @@ export default function POSPage() {
   const [discountValue, setDiscountValue] = useState(0);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [isCartDialogOpen, setIsCartDialogOpen] = useState(false);
 
   const { toast } = useToast();
 
@@ -87,35 +91,46 @@ export default function POSPage() {
     });
   }, [searchTerm, selectedCategory]);
 
+  const cartItemCount = useMemo(() => {
+    return cart.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cart]);
+
   const addToCart = useCallback((product: Product) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.id === product.id);
-      if (existingItem) {
-        if (existingItem.quantity < product.stock) {
-          return prevCart.map(item =>
-            item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-          );
+    const itemInCart = cart.find(item => item.id === product.id);
+
+    if (itemInCart) { // Item exists, try to increment
+        if (itemInCart.quantity < product.stock) {
+            setCart(prevCart => prevCart.map(item =>
+                item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+            ));
+            const newQuantity = itemInCart.quantity + 1;
+            toast({
+                title: "Jumlah Produk Diperbarui",
+                description: `${product.name} (Qty: ${newQuantity}) - ${formatCurrency(product.price * newQuantity)}`,
+            });
         } else {
-          toast({
-            title: "Stok Tidak Cukup",
-            description: `Stok untuk ${product.name} hanya tersisa ${product.stock}.`,
-            variant: "destructive",
-          });
-          return prevCart;
+            toast({
+                title: "Stok Tidak Cukup",
+                description: `Stok untuk ${product.name} hanya tersisa ${product.stock}.`,
+                variant: "destructive",
+            });
         }
-      }
-      if (product.stock > 0) {
-        return [...prevCart, { ...product, quantity: 1 }];
-      } else {
-         toast({
-            title: "Stok Habis",
-            description: `${product.name} sudah habis.`,
-            variant: "destructive",
-          });
-        return prevCart;
-      }
-    });
-  }, [toast]);
+    } else { // New item
+        if (product.stock > 0) {
+            setCart(prevCart => [...prevCart, { ...product, quantity: 1 }]);
+            toast({
+                title: "Produk Ditambahkan",
+                description: `${product.name} (Qty: 1) - ${formatCurrency(product.price)}`,
+            });
+        } else {
+            toast({
+                title: "Stok Habis",
+                description: `${product.name} sudah habis.`,
+                variant: "destructive",
+            });
+        }
+    }
+  }, [cart, toast]);
 
   const updateQuantity = useCallback((productId: string, quantity: number) => {
     setCart(prevCart => {
@@ -177,23 +192,20 @@ export default function POSPage() {
   };
 
   const processPayment = () => {
-    // Simulate payment processing & saving transaction
     console.log("Processing payment...", {
       cart, subtotal, taxAmount, discountAmount, totalAmount, paymentMethod
     });
     
-    // Here you would typically call a server action to save the transaction
-    // For now, we just show a success toast and clear the cart
-
     toast({
       title: "Transaksi Berhasil!",
       description: `Total pembayaran ${formatCurrency(totalAmount)} dengan ${paymentMethod}.`,
-      action: <ToastAction altText="Lihat Struk">Lihat Struk</ToastAction>, // This would link to transaction detail page
+      action: <ToastAction altText="Lihat Struk">Lihat Struk</ToastAction>, 
     });
     
     setCart([]);
     setDiscountValue(0);
     setShowCheckoutModal(false);
+    setIsCartDialogOpen(false); // Close cart dialog as well
   };
 
   const categories: Category[] = [{ id: 'all', name: 'Semua Kategori' }, ...placeholderCategories];
@@ -201,10 +213,21 @@ export default function POSPage() {
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-theme(spacing.28))]">
       {/* Product Selection Area */}
-      <div className="lg:w-3/5 flex flex-col gap-4">
+      <div className="lg:w-full flex flex-col gap-4">
         <Card className="shadow-sm">
           <CardHeader className="p-4">
-            <CardTitle className="text-xl">Pilih Produk</CardTitle>
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+              <CardTitle className="text-xl">Pilih Produk</CardTitle>
+              <Button onClick={() => setIsCartDialogOpen(true)} size="lg" className="relative bg-primary text-primary-foreground hover:bg-primary/90">
+                <ShoppingCart className="mr-2 h-5 w-5" />
+                Keranjang
+                {cartItemCount > 0 && (
+                  <Badge variant="secondary" className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center text-xs">
+                    {cartItemCount}
+                  </Badge>
+                )}
+              </Button>
+            </div>
             <div className="flex flex-col sm:flex-row gap-2 mt-2">
               <div className="relative flex-grow">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -233,7 +256,7 @@ export default function POSPage() {
         </Card>
         <ScrollArea className="flex-grow rounded-lg border bg-card shadow-inner p-1">
           {filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 p-3">
               {filteredProducts.map(product => (
                 <ProductCard key={product.id} product={product} onAddToCart={addToCart} />
               ))}
@@ -248,17 +271,21 @@ export default function POSPage() {
         </ScrollArea>
       </div>
 
-      {/* Cart Area */}
-      <div className="lg:w-2/5 flex flex-col">
-        <Card className="flex-grow flex flex-col shadow-lg">
-          <CardHeader className="p-4">
-            <CardTitle className="text-xl flex items-center">
+      {/* Cart Dialog */}
+      <Dialog open={isCartDialogOpen} onOpenChange={setIsCartDialogOpen}>
+        <DialogContent className="sm:max-w-xl md:max-w-2xl lg:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center">
               <ShoppingCart className="mr-2 h-6 w-6 text-primary" /> Keranjang Belanja
-            </CardTitle>
-          </CardHeader>
-          <ScrollArea className="flex-grow border-t border-b">
+            </DialogTitle>
+            <DialogDescription>
+              Periksa item di keranjang Anda sebelum melanjutkan ke pembayaran.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[calc(70vh-200px)] border-t border-b">
             {cart.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center p-10">
+              <div className="flex flex-col items-center justify-center h-full text-center p-10 min-h-[200px]">
                  <Info className="w-16 h-16 text-muted-foreground mb-4" />
                  <h3 className="text-xl font-semibold">Keranjang Kosong</h3>
                  <p className="text-muted-foreground">Pilih produk untuk ditambahkan ke keranjang.</p>
@@ -297,20 +324,21 @@ export default function POSPage() {
               </Table>
             )}
           </ScrollArea>
-          <CardContent className="p-4 space-y-3">
+          
+          <div className="p-4 space-y-3 border-b">
             <div className="flex justify-between items-center">
               <Label>Subtotal</Label>
               <span className="font-semibold">{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <Label htmlFor="taxRate" className="flex-shrink-0">Pajak ({taxRate * 100}%)</Label>
-              <Input id="taxRate" type="number" value={taxRate * 100} onChange={(e) => setTaxRate(parseFloat(e.target.value) / 100)} className="h-8 w-20 text-sm" step="0.1" min="0" />
+              <Label htmlFor="taxRateDialog" className="flex-shrink-0">Pajak ({taxRate * 100}%)</Label>
+              <Input id="taxRateDialog" type="number" value={taxRate * 100} onChange={(e) => setTaxRate(parseFloat(e.target.value) / 100)} className="h-8 w-20 text-sm" step="0.1" min="0" />
               <span className="font-semibold ml-auto">{formatCurrency(taxAmount)}</span>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                <Label htmlFor="discountValue" className="flex-shrink-0 whitespace-nowrap">Diskon</Label>
+                <Label htmlFor="discountValueDialog" className="flex-shrink-0 whitespace-nowrap">Diskon</Label>
                 <div className="flex gap-1 w-full sm:w-auto">
-                    <Input id="discountValue" type="number" value={discountValue} onChange={(e) => setDiscountValue(parseFloat(e.target.value))} className="h-8 flex-grow sm:w-20 text-sm" min="0" />
+                    <Input id="discountValueDialog" type="number" value={discountValue} onChange={(e) => setDiscountValue(parseFloat(e.target.value))} className="h-8 flex-grow sm:w-20 text-sm" min="0" />
                     <Select value={discountType} onValueChange={(value: 'percentage' | 'fixed') => setDiscountType(value)}>
                         <SelectTrigger className="h-8 w-[60px] sm:w-auto text-xs p-1 sm:p-2">
                             <SelectValue />
@@ -323,51 +351,55 @@ export default function POSPage() {
                 </div>
                 <span className="font-semibold ml-auto text-destructive">- {formatCurrency(discountAmount)}</span>
             </div>
-          </CardContent>
-          <Separator />
-          <CardFooter className="p-4 flex flex-col gap-3">
-            <div className="flex justify-between items-center w-full text-xl font-bold">
+          </div>
+
+          <DialogFooter className="p-4 flex flex-col sm:flex-row gap-3">
+            <div className="flex justify-between items-center w-full text-xl font-bold sm:mr-auto">
               <span>Total</span>
               <span className="text-primary">{formatCurrency(totalAmount)}</span>
             </div>
-            <Button onClick={handleCheckout} size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-transform hover:scale-105" disabled={cart.length === 0}>
-              <CheckCircle className="mr-2 h-5 w-5" /> Bayar
-            </Button>
-            {cart.length > 0 && (
-                 <AlertDialog>
-                 <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="lg" className="w-full hover:border-destructive hover:text-destructive">
-                        <XCircle className="mr-2 h-5 w-5" /> Batal Transaksi
-                    </Button>
-                 </AlertDialogTrigger>
-                 <AlertDialogContent>
-                     <AlertDialogHeader>
-                         <AlertDialogTitle>Batalkan Transaksi?</AlertDialogTitle>
-                         <AlertDialogDescription>
-                             Apakah Anda yakin ingin menghapus semua item dari keranjang dan membatalkan transaksi ini?
-                         </AlertDialogDescription>
-                     </AlertDialogHeader>
-                     <AlertDialogFooter>
-                         <AlertDialogCancel>Tidak</AlertDialogCancel>
-                         <AlertDialogAction
-                             onClick={() => {
-                                 setCart([]);
-                                 setDiscountValue(0);
-                                 toast({ title: "Transaksi Dibatalkan", description: "Keranjang belanja telah dikosongkan." });
-                             }}
-                             className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-                         >
-                             Ya, Batalkan
-                         </AlertDialogAction>
-                     </AlertDialogFooter>
-                 </AlertDialogContent>
-             </AlertDialog>
-            )}
-          </CardFooter>
-        </Card>
-      </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                {cart.length > 0 && (
+                    <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="lg" className="w-full sm:w-auto hover:border-destructive hover:text-destructive">
+                            <XCircle className="mr-2 h-5 w-5" /> Batal
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Batalkan Transaksi?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Apakah Anda yakin ingin menghapus semua item dari keranjang dan membatalkan transaksi ini?
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Tidak</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => {
+                                    setCart([]);
+                                    setDiscountValue(0);
+                                    toast({ title: "Transaksi Dibatalkan", description: "Keranjang belanja telah dikosongkan." });
+                                    setIsCartDialogOpen(false);
+                                }}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                            >
+                                Ya, Batalkan
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+                )}
+                <Button onClick={handleCheckout} size="lg" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-md" disabled={cart.length === 0}>
+                <CheckCircle className="mr-2 h-5 w-5" /> Bayar
+                </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      {/* Checkout Modal */}
+
+      {/* Checkout Modal (Konfirmasi Pembayaran) */}
       <AlertDialog open={showCheckoutModal} onOpenChange={setShowCheckoutModal}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -390,7 +422,6 @@ export default function POSPage() {
                 <SelectItem value="Transfer">Transfer Bank</SelectItem>
               </SelectContent>
             </Select>
-            {/* Add more payment details form if needed, e.g., amount tendered for cash */}
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
@@ -403,3 +434,6 @@ export default function POSPage() {
     </div>
   );
 }
+
+
+    
