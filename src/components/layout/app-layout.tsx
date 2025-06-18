@@ -214,12 +214,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Sidebar>
         <SidebarInset>
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6">
-              {/* Changed: Removed md:hidden to make trigger always visible */}
               <div className="flex items-center gap-2">
                    <SidebarTrigger asChild>
                       <Button variant="outline" size="icon" className="shrink-0">
+                        <span className="flex items-center justify-center">
                           <PanelLeft className="h-5 w-5" />
                           <span className="sr-only">Toggle navigation menu</span>
+                        </span>
                       </Button>
                    </SidebarTrigger>
               </div>
@@ -229,11 +230,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
+                    <span className="flex items-center justify-center">
                       <Avatar className="h-8 w-8">
                       <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
                       <AvatarFallback>TM</AvatarFallback>
                       </Avatar>
                       <span className="sr-only">Toggle user menu</span>
+                    </span>
                   </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
