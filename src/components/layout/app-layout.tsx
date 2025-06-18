@@ -29,8 +29,6 @@ import {
   LineChart,
   Store,
   PanelLeft,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -42,7 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 
@@ -187,70 +185,75 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
 
   return (
-    <SidebarProvider defaultOpen={initialSidebarOpen} open={initialSidebarOpen} onOpenChange={setInitialSidebarOpen}>
-      <Sidebar collapsible="icon" variant="sidebar" side="left">
-        <SidebarHeader className="p-4 flex items-center gap-2 justify-between">
-           <Link href="/" className="flex items-center gap-2">
-             <Store className="h-8 w-8 text-sidebar-primary" />
-             <h1 className="text-xl font-headline font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">Toko Mudah</h1>
-           </Link>
-        </SidebarHeader>
-        <ScrollArea className="flex-1 group-data-[collapsible=icon]:overflow-hidden">
-          <SidebarContent className="p-2">
-            <SidebarNavigation />
-          </SidebarContent>
-        </ScrollArea>
-        <div className="p-4 border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
-            <div className="flex items-center gap-3">
-                <Avatar className="h-9 w-9">
-                    <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
-                    <AvatarFallback>TM</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                    <span className="text-sm font-medium text-sidebar-foreground">Admin Toko</span>
-                    <span className="text-xs text-sidebar-foreground/70">admin@tokomudah.com</span>
-                </div>
-            </div>
-        </div>
-      </Sidebar>
-      <SidebarInset>
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6">
-            <div className="flex items-center gap-2 md:hidden">
-                 <SidebarTrigger asChild>
-                    <Button variant="outline" size="icon" className="shrink-0">
-                        <PanelLeft className="h-5 w-5" />
-                        <span className="sr-only">Toggle navigation menu</span>
-                    </Button>
-                 </SidebarTrigger>
-            </div>
-            <div className="flex-1">
-            </div>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                    <Avatar className="h-8 w-8">
-                    <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
-                    <AvatarFallback>TM</AvatarFallback>
-                    </Avatar>
-                    <span className="sr-only">Toggle user menu</span>
-                </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Settings</DropdownMenuItem>
-                <DropdownMenuItem>Support</DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>Logout</DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </header>
-        <main className="flex-1 p-4 md:p-6 lg:p-8">
-          <ScrollArea className="h-[calc(100vh-theme(spacing.14)-theme(spacing.16))]">
-             {children}
+    <TooltipProvider>
+      <SidebarProvider defaultOpen={initialSidebarOpen} open={initialSidebarOpen} onOpenChange={setInitialSidebarOpen}>
+        <Sidebar collapsible="icon" variant="sidebar" side="left">
+          <SidebarHeader className="p-4 flex items-center gap-2 justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <Store className="h-8 w-8 text-sidebar-primary" />
+              <h1 className="text-xl font-headline font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">Toko Mudah</h1>
+            </Link>
+          </SidebarHeader>
+          <ScrollArea className="flex-1 group-data-[collapsible=icon]:overflow-hidden">
+            <SidebarContent className="p-2">
+              <SidebarNavigation />
+            </SidebarContent>
           </ScrollArea>
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+          <div className="p-4 border-t border-sidebar-border group-data-[collapsible=icon]:hidden">
+              <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                      <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
+                      <AvatarFallback>TM</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                      <span className="text-sm font-medium text-sidebar-foreground">Admin Toko</span>
+                      <span className="text-xs text-sidebar-foreground/70">admin@tokomudah.com</span>
+                  </div>
+              </div>
+          </div>
+        </Sidebar>
+        <SidebarInset>
+          <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6">
+              {/* Changed: Removed md:hidden to make trigger always visible */}
+              <div className="flex items-center gap-2">
+                   <SidebarTrigger asChild>
+                      <Button variant="outline" size="icon" className="shrink-0">
+                          <PanelLeft className="h-5 w-5" />
+                          <span className="sr-only">Toggle navigation menu</span>
+                      </Button>
+                   </SidebarTrigger>
+              </div>
+              <div className="flex-1">
+                  {/* Future: Breadcrumbs or page title can go here */}
+              </div>
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                      <Avatar className="h-8 w-8">
+                      <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
+                      <AvatarFallback>TM</AvatarFallback>
+                      </Avatar>
+                      <span className="sr-only">Toggle user menu</span>
+                  </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>Settings</DropdownMenuItem>
+                  <DropdownMenuItem>Support</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>Logout</DropdownMenuItem>
+                  </DropdownMenuContent>
+              </DropdownMenu>
+          </header>
+          <main className="flex-1 p-4 md:p-6 lg:p-8">
+            <ScrollArea className="h-[calc(100vh-theme(spacing.14)-theme(spacing.16))]">
+               {children}
+            </ScrollArea>
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
   );
 }
+
