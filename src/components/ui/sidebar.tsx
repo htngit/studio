@@ -252,12 +252,12 @@ Sidebar.displayName = "Sidebar"
 
 const SidebarTrigger = React.forwardRef<
   HTMLButtonElement,
-  React.ComponentPropsWithoutRef<typeof Button>
+  React.ComponentPropsWithoutRef<typeof Button> & { asChild?: boolean } // Ensure asChild is part of props
 >(({
   className,
   onClick: userOnClick,
   children: childrenPassedToTrigger,
-  asChild: triggerIsAsChild = false,
+  asChild: triggerIsAsChild = false, // Explicitly destructure asChild for SidebarTrigger
   ...props
 }, ref) => {
   const { toggleSidebar } = useSidebar();
@@ -267,19 +267,7 @@ const SidebarTrigger = React.forwardRef<
     toggleSidebar();
   };
 
-  if (triggerIsAsChild) {
-    return (
-      <Slot
-        ref={ref}
-        onClick={combinedOnClick}
-        // className from props will be merged by Slot onto the child
-        // We only apply specific structural/default classes if NOT asChild
-        {...props} // Spread all other props (including className if provided by user of SidebarTrigger)
-      >
-        {childrenPassedToTrigger}
-      </Slot>
-    );
-  }
+  const Comp = triggerIsAsChild ? Slot : Button;
 
   const defaultButtonContent = (
     <span className="flex items-center justify-center">
@@ -287,18 +275,30 @@ const SidebarTrigger = React.forwardRef<
       <span className="sr-only">Toggle Sidebar</span>
     </span>
   );
-  
   const actualButtonChildren = childrenPassedToTrigger ?? defaultButtonContent;
+
+  if (triggerIsAsChild) {
+    return (
+      <Slot
+        ref={ref}
+        onClick={combinedOnClick}
+        className={className} // Pass className to Slot
+        {...props}
+      >
+        {actualButtonChildren}
+      </Slot>
+    );
+  }
 
   return (
     <Button
       ref={ref}
       data-sidebar="trigger"
-      variant="ghost"
-      size="icon"
-      className={cn("h-7 w-7 md:h-8 md:w-8", className)}
+      variant="outline" // Default variant if not overridden by props
+      size="icon"     // Default size if not overridden by props
+      className={cn("h-7 w-7 md:h-8 md:w-8", className)} // Default classes + user classes
       onClick={combinedOnClick}
-      {...props}
+      {...props} // Spread all other props
     >
       {actualButtonChildren}
     </Button>
@@ -482,7 +482,7 @@ const SidebarGroupAction = React.forwardRef<
       ref={ref}
       data-sidebar="group-action"
       className={cn(
-        "absolute right-3 top-3.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
+        "absolute right-1 top-3.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground outline-none ring-sidebar-ring transition-transform hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
         "after:absolute after:-inset-2 after:md:hidden",
         "group-data-[collapsible=icon]:hidden",
         className
@@ -555,41 +555,60 @@ const sidebarMenuButtonVariants = cva(
 )
 
 export interface SidebarMenuButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>, // For when it's a button
+    React.AnchorHTMLAttributes<HTMLAnchorElement>,   // For when it's an anchor
     VariantProps<typeof sidebarMenuButtonVariants> {
   asChild?: boolean;
   isActive?: boolean;
+  // href is already part of AnchorHTMLAttributes
 }
 
 
-const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonProps>(
+const SidebarMenuButton = React.forwardRef<
+  HTMLButtonElement | HTMLAnchorElement, // Ref can be button or anchor
+  SidebarMenuButtonProps
+>(
   ({
-    asChild: sidebarMenuButtonIsAsChild = false, 
+    asChild: sidebarMenuButtonIsAsChild = false,
     isActive = false,
     variant = "default",
     size = "default",
     className,
-    children, 
+    children,
+    href, // Destructure href
     ...restProps
   }, ref) => {
-    const Comp = sidebarMenuButtonIsAsChild ? Slot : "button";
+    const isLink = typeof href === 'string';
+    const ElementType: React.ElementType = sidebarMenuButtonIsAsChild ? Slot : (isLink ? "a" : "button");
 
-    const finalProps: Record<string, any> = { ...restProps };
-    if (Comp === "button" && finalProps.asChild !== undefined) {
-      delete finalProps.asChild;
+    const propsForElement = { ...restProps };
+
+    // Remove asChild from props if ElementType is a DOM element
+    if (ElementType !== Slot && propsForElement.asChild !== undefined) {
+      delete propsForElement.asChild;
     }
 
+    // Add href if it's an anchor
+    if (isLink && ElementType === "a") {
+      propsForElement.href = href;
+    }
+    
+    // Set type="button" if it's a button and no type is specified
+    if (ElementType === "button" && !propsForElement.type) {
+      propsForElement.type = "button";
+    }
+    
     return (
-      <Comp
+      <ElementType
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
-        {...finalProps}
+        {...propsForElement}
       >
-        {children} 
-      </Comp>
+        {children}
+      </ElementType>
     );
   }
 );
@@ -708,14 +727,21 @@ const SidebarMenuSubItem = React.forwardRef<
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
 const SidebarMenuSubButton = React.forwardRef<
-  HTMLAnchorElement,
+  HTMLAnchorElement, // Usually an anchor for sub-menu items that navigate
   React.ComponentProps<"a"> & {
     asChild?: boolean
     size?: "sm" | "md"
     isActive?: boolean
   }
->(({ asChild = false, size = "md", isActive, className, ...props }, ref) => {
-  const Comp = asChild ? Slot : "a"
+>(({ asChild = false, size = "md", isActive, className, children, ...props }, ref) => {
+  const Comp = asChild ? Slot : "a" // Default to 'a' for sub-menu buttons
+
+  // Remove asChild from props if Comp is a DOM element
+  const finalProps = { ...props };
+  if (Comp !== Slot && finalProps.asChild !== undefined) {
+    delete finalProps.asChild;
+  }
+
 
   return (
     <Comp
@@ -731,8 +757,10 @@ const SidebarMenuSubButton = React.forwardRef<
         "group-data-[collapsible=icon]:hidden",
         className
       )}
-      {...props}
-    />
+      {...finalProps}
+    >
+      {children}
+    </Comp>
   )
 })
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
@@ -764,3 +792,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
