@@ -7,7 +7,7 @@ import { Header } from "../components/header";
 import { CategoryFilter } from "../components/category-filter";
 import { FoodGrid } from "../components/food-grid";
 // import { Cart } from "../components/cart"; // Remove old cart
-import { Footer } from "../components/footer";
+// import { Footer } from "../components/footer"; // Remove Footer
 
 export default function POSPage() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -29,7 +29,7 @@ export default function POSPage() {
           <FoodGrid />
         </main>
         {/* <Cart /> */} {/* Removed old cart component */}
-        <Footer />
+        {/* <Footer /> */} {/* Footer component removed */}
       </div>
     </div>
   );
