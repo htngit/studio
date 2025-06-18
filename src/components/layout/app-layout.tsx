@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -28,6 +29,13 @@ import {
   LineChart,
   Store,
   PanelLeft,
+  Landmark,
+  PieChart,
+  ListTree,
+  BookOpenText,
+  LibraryBig,
+  FileText,
+  Scale,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -58,6 +66,19 @@ const navItems: NavItem[] = [
   },
   { title: 'Transaksi', href: '/transactions', icon: Receipt },
   { title: 'Pengeluaran', href: '/expenses', icon: Banknote },
+  {
+    title: 'Akuntansi',
+    href: '/accounting',
+    icon: Landmark,
+    subItems: [
+      { title: 'Ringkasan Akuntansi', href: '/accounting', icon: PieChart },
+      { title: 'Bagan Akun', href: '/accounting/chart-of-accounts', icon: ListTree },
+      { title: 'Jurnal Umum', href: '/accounting/general-journal', icon: BookOpenText },
+      { title: 'Buku Besar', href: '/accounting/general-ledger', icon: LibraryBig },
+      { title: 'Laporan Laba Rugi', href: '/accounting/income-statement', icon: FileText },
+      { title: 'Neraca', href: '/accounting/balance-sheet', icon: Scale },
+    ],
+  },
   { title: 'Laporan', href: '/reports', icon: LineChart },
 ];
 
@@ -96,7 +117,7 @@ function SidebarNavigation() {
                 className={cn(
                   "flex w-full items-center overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground",
                   "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center",
-                  (item.subItems?.some(sub => pathname.startsWith(sub.href)) || (pathname.startsWith(item.href) && item.href !== '/')) && activeAccordionItem === item.title && 
+                  (item.subItems?.some(sub => pathname.startsWith(sub.href)) || (pathname.startsWith(item.href) && item.href !== '/' && item.title !== 'Akuntansi' /* Ensure Akuntansi parent isn't highlighted if only child /accounting is active */ ) || (item.title === 'Akuntansi' && pathname === '/accounting' && item.subItems?.some(sub => sub.href === '/accounting'))) && activeAccordionItem === item.title && 
                   "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground"
                 )}
               >
@@ -111,16 +132,17 @@ function SidebarNavigation() {
                     <SidebarMenuItem key={subItem.title}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <SidebarMenuButton
-                            asChild
-                            isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
-                            className="justify-start text-sm"
-                          >
-                            <Link href={subItem.href}>
-                              <subItem.icon className="h-4 w-4" />
-                              <span>{subItem.title}</span>
-                            </Link>
-                          </SidebarMenuButton>
+                          <Link href={subItem.href} asChild>
+                            <SidebarMenuButton
+                              isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
+                              className="justify-start text-sm"
+                            >
+                              <React.Fragment>
+                                <subItem.icon className="h-4 w-4" />
+                                <span>{subItem.title}</span>
+                              </React.Fragment>
+                            </SidebarMenuButton>
+                          </Link>
                         </TooltipTrigger>
                         {(state === 'collapsed' && !isMobile && subItem.title) && (
                           <TooltipContent side="right" align="center">
@@ -138,19 +160,20 @@ function SidebarNavigation() {
           <SidebarMenuItem key={item.title}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
-                >
-                  <Link href={item.href}>
-                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                    {(open || (isMobile && state === 'expanded')) && (
-                      <span className="truncate group-data-[collapsible=icon]:hidden">
-                        {item.title}
-                      </span>
-                    )}
-                  </Link>
-                </SidebarMenuButton>
+                <Link href={item.href} asChild>
+                  <SidebarMenuButton
+                    isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
+                  >
+                    <React.Fragment>
+                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                      {(open || (isMobile && state === 'expanded')) && (
+                        <span className="truncate group-data-[collapsible=icon]:hidden">
+                          {item.title}
+                        </span>
+                      )}
+                    </React.Fragment>
+                  </SidebarMenuButton>
+                </Link>
               </TooltipTrigger>
               {(state === 'collapsed' && !isMobile && item.title) && (
                 <TooltipContent side="right" align="center">
@@ -256,3 +279,4 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </TooltipProvider>
   );
 }
+
