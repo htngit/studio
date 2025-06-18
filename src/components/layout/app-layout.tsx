@@ -132,17 +132,18 @@ function SidebarNavigation() {
                     <SidebarMenuItem key={subItem.title}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Link href={subItem.href} asChild>
-                            <SidebarMenuButton
-                              isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
-                              className="justify-start text-sm"
-                            >
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
+                            className="justify-start text-sm"
+                          >
+                            <Link href={subItem.href}>
                               <React.Fragment>
                                 <subItem.icon className="h-4 w-4" />
                                 <span>{subItem.title}</span>
                               </React.Fragment>
-                            </SidebarMenuButton>
-                          </Link>
+                            </Link>
+                          </SidebarMenuButton>
                         </TooltipTrigger>
                         {(state === 'collapsed' && !isMobile && subItem.title) && (
                           <TooltipContent side="right" align="center">
@@ -160,10 +161,11 @@ function SidebarNavigation() {
           <SidebarMenuItem key={item.title}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link href={item.href} asChild>
-                  <SidebarMenuButton
-                    isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
-                  >
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
+                >
+                  <Link href={item.href}>
                     <React.Fragment>
                       <item.icon className="h-5 w-5 flex-shrink-0" />
                       {(open || (isMobile && state === 'expanded')) && (
@@ -172,8 +174,8 @@ function SidebarNavigation() {
                         </span>
                       )}
                     </React.Fragment>
-                  </SidebarMenuButton>
-                </Link>
+                  </Link>
+                </SidebarMenuButton>
               </TooltipTrigger>
               {(state === 'collapsed' && !isMobile && item.title) && (
                 <TooltipContent side="right" align="center">
@@ -237,7 +239,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex items-center gap-2">
                    <SidebarTrigger asChild>
                       <Button variant="outline" size="icon" className="shrink-0">
-                        <span className="flex items-center justify-center">
+                        <span className="flex items-center justify-center"> {/* Single child for Button */}
                           <PanelLeft className="h-5 w-5" />
                           <span className="sr-only">Toggle navigation menu</span>
                         </span>
@@ -250,7 +252,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
-                    <span className="flex items-center justify-center">
+                    <span className="flex items-center justify-center"> {/* Single child for Button */}
                       <Avatar className="h-8 w-8">
                       <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
                       <AvatarFallback>TM</AvatarFallback>
