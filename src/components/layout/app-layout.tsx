@@ -29,13 +29,18 @@ import {
   LineChart,
   Store,
   PanelLeft,
-  Landmark,
-  PieChart,
-  ListTree,
-  BookOpenText,
-  LibraryBig,
-  FileText,
-  Scale,
+  Landmark, // Akuntansi parent icon
+  PieChart, // Sub-item Akuntansi
+  ListTree, // Sub-item Akuntansi
+  BookOpenText, // Sub-item Akuntansi
+  LibraryBig, // Sub-item Akuntansi
+  FileText, // Sub-item Akuntansi
+  Scale, // Sub-item Akuntansi
+  MenuSquare, // New parent icon for Buku Menu
+  Building2, // New icon for Departemen
+  ConciergeBell, // New icon for Produk Layanan
+  PlusSquare, // New icon for Produk Ekstra
+  Archive, // New icon for Produk Paket
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -56,12 +61,16 @@ const navItems: NavItem[] = [
   { title: 'Dashboard', href: '/', icon: LayoutDashboard },
   { title: 'POS', href: '/pos', icon: ShoppingCart },
   {
-    title: 'Manajemen Data',
-    href: '/products', 
-    icon: Package,
+    title: 'Buku Menu',
+    href: '/book-menu',
+    icon: MenuSquare,
     subItems: [
-      { title: 'Produk', href: '/products', icon: Package },
-      { title: 'Kategori', href: '/categories', icon: Tags },
+      { title: 'Daftar Departemen', href: '/book-menu/departments', icon: Building2 },
+      { title: 'Daftar Kategori', href: '/categories', icon: Tags },
+      { title: 'Daftar Produk', href: '/products', icon: Package },
+      { title: 'Produk Layanan', href: '/book-menu/service-products', icon: ConciergeBell },
+      { title: 'Produk Ekstra', href: '/book-menu/extra-products', icon: PlusSquare },
+      { title: 'Produk Paket', href: '/book-menu/package-products', icon: Archive },
     ],
   },
   { title: 'Transaksi', href: '/transactions', icon: Receipt },
@@ -88,15 +97,20 @@ function SidebarNavigation() {
   const [activeAccordionItem, setActiveAccordionItem] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    const activeParent = navItems.find(item => item.subItems?.some(sub => pathname.startsWith(sub.href)));
-    if (activeParent) {
+    // Determine the active parent based on current pathname
+    const activeParent = navItems.find(item => 
+      item.subItems?.some(sub => pathname.startsWith(sub.href) && (sub.href !== '/' || pathname === '/')) || // Sub-item is active
+      (item.href !== '/' && pathname.startsWith(item.href)) // Parent item itself is active
+    );
+  
+    if (activeParent?.subItems) { // Only set for accordion items
       setActiveAccordionItem(activeParent.title);
-    } else {
-      const isActiveTopLevel = navItems.some(item => !item.subItems && pathname.startsWith(item.href));
-      if (isActiveTopLevel || !activeParent) {
-        setActiveAccordionItem(undefined);
-      }
+    } else if (!activeParent?.subItems && activeParent) { // A top-level item without subitems is active
+      setActiveAccordionItem(undefined); // Collapse accordions
+    } else if (!activeParent) { // No item is active or root is active
+       setActiveAccordionItem(undefined); // Collapse accordions
     }
+  
   }, [pathname]);
 
 
@@ -117,7 +131,8 @@ function SidebarNavigation() {
                 className={cn(
                   "flex w-full items-center overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground",
                   "group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center",
-                  (item.subItems?.some(sub => pathname.startsWith(sub.href)) || (pathname.startsWith(item.href) && item.href !== '/' && item.title !== 'Akuntansi' /* Ensure Akuntansi parent isn't highlighted if only child /accounting is active */ ) || (item.title === 'Akuntansi' && pathname === '/accounting' && item.subItems?.some(sub => sub.href === '/accounting'))) && activeAccordionItem === item.title && 
+                  // Check if any subItem is active OR if the parent item itself is active (and is not the root '/')
+                  (item.subItems?.some(sub => pathname.startsWith(sub.href) && (sub.href !== '/' || pathname === '/')) || (item.href !== '/' && pathname.startsWith(item.href))) && activeAccordionItem === item.title &&
                   "bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90 hover:text-sidebar-primary-foreground"
                 )}
               >
@@ -132,9 +147,9 @@ function SidebarNavigation() {
                     <SidebarMenuItem key={subItem.title}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <SidebarMenuButton
+                           <SidebarMenuButton
                             asChild
-                            isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href))}
+                            isActive={pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href) && subItem.href.length > 1)}
                             className="justify-start text-sm"
                           >
                             <Link href={subItem.href}>
@@ -163,7 +178,7 @@ function SidebarNavigation() {
               <TooltipTrigger asChild>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
+                  isActive={(pathname === item.href) || (item.href !== '/' && pathname.startsWith(item.href) && !item.subItems)}
                 >
                   <Link href={item.href}>
                     <React.Fragment>
@@ -238,8 +253,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 lg:h-[60px] lg:px-6">
               <div className="flex items-center gap-2">
                    <SidebarTrigger asChild>
-                      <Button variant="outline" size="icon" className="shrink-0">
-                        <span className="flex items-center justify-center"> {/* Single child for Button */}
+                      <Button variant="outline" size="icon" className="shrink-0 md:flex">
+                        <span className="flex items-center justify-center">
                           <PanelLeft className="h-5 w-5" />
                           <span className="sr-only">Toggle navigation menu</span>
                         </span>
@@ -252,7 +267,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="rounded-full">
-                    <span className="flex items-center justify-center"> {/* Single child for Button */}
+                    <span className="flex items-center justify-center">
                       <Avatar className="h-8 w-8">
                       <AvatarImage src="https://placehold.co/100x100.png" alt="User Avatar" data-ai-hint="user avatar" />
                       <AvatarFallback>TM</AvatarFallback>
@@ -281,4 +296,3 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </TooltipProvider>
   );
 }
-
