@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -28,13 +29,23 @@ const AccordionTrigger = React.forwardRef<
     <AccordionPrimitive.Trigger
       ref={ref}
       className={cn(
-        "flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180",
+        // className from app-layout.tsx will provide primary styling.
+        // Add rotation style for the chevron based on parent's data-state.
+        "[&[data-state=open]_.accordion-chevron]:rotate-180",
         className
       )}
       {...props}
     >
-      {children}
-      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+      {/* Single wrapper div as the only child of AccordionPrimitive.Trigger */}
+      <div className="flex w-full items-center justify-between">
+        {children} {/* Content (icon and title) passed from app-layout */}
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 transition-transform duration-200 accordion-chevron",
+            "group-data-[collapsible=icon]:hidden" // Hide when sidebar is in icon-only mode via parent group data attribute
+          )}
+        />
+      </div>
     </AccordionPrimitive.Trigger>
   </AccordionPrimitive.Header>
 ))
