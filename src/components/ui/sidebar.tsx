@@ -250,66 +250,67 @@ const Sidebar = React.forwardRef<
 )
 Sidebar.displayName = "Sidebar"
 
-const SidebarTrigger = React.forwardRef<
-  HTMLButtonElement,
-  ButtonProps & { asChild?: boolean }
->(({
-  className,
-  onClick: userOnClick,
-  children: childrenPassedToTrigger,
-  asChild: triggerIsAsChild = false,
-  ...props
-}, ref) => {
-  const { toggleSidebar } = useSidebar();
+export interface SidebarTriggerProps extends ButtonProps {
+  // No additional props needed for now
+}
 
-  const combinedOnClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    userOnClick?.(event);
-    toggleSidebar();
-  };
+const SidebarTrigger = React.forwardRef<HTMLButtonElement, SidebarTriggerProps>(
+  ({
+    className,
+    onClick: userOnClick,
+    children: childrenPassedToTrigger,
+    asChild: triggerIsAsChild = false, // This is SidebarTrigger's own asChild
+    ...props
+  }, ref) => {
+    const { toggleSidebar } = useSidebar();
 
-  const Comp = triggerIsAsChild ? Slot : Button;
+    const combinedOnClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+      userOnClick?.(event);
+      toggleSidebar();
+    };
 
-  // Default content for the trigger if no children are provided
-  const defaultButtonContent = (
-    <span className="flex items-center justify-center">
-      <PanelLeft />
-      <span className="sr-only">Toggle Sidebar</span>
-    </span>
-  );
-  // Use provided children or default content
-  const actualButtonChildren = childrenPassedToTrigger ?? defaultButtonContent;
+    // Determine the children for the Button or Slot
+    // If children are passed to SidebarTrigger, use them; otherwise, use default icon/text
+    const actualButtonChildren = childrenPassedToTrigger ?? (
+      <span className="flex items-center justify-center"> {/* Ensure this is a single element */}
+        <PanelLeft className="h-5 w-5" />
+        <span className="sr-only">Toggle Sidebar</span>
+      </span>
+    );
+    
+    const Comp = triggerIsAsChild ? Slot : Button;
 
+    if (triggerIsAsChild) {
+      // When SidebarTrigger is a Slot, it delegates rendering to its child.
+      // The child (e.g., the <Button> from AppLayout) will receive combinedOnClick and other props.
+      return (
+        <Slot
+          ref={ref}
+          onClick={combinedOnClick}
+          className={cn(className)} // Allow className to be passed to the Slot itself
+          {...props} // Pass other ButtonProps (like variant, size) to be merged by Slot
+        >
+          {actualButtonChildren}
+        </Slot>
+      );
+    }
 
-  if (triggerIsAsChild) {
-     // If SidebarTrigger is asChild, it renders a Slot.
-     // The child passed to SidebarTrigger (e.g., a Button from AppLayout) becomes the child of this Slot.
+    // When SidebarTrigger renders its own Button
     return (
-      <Slot
+      <Button
         ref={ref}
+        data-sidebar="trigger"
+        variant="outline" // Default variant if not overridden by props
+        size="icon"       // Default size if not overridden by props
+        className={cn(className)} // Combine with any passed className
         onClick={combinedOnClick}
-        className={cn(className)} // Allow className to be passed to the Slot itself
-        {...props} // Pass other ButtonProps (like variant, size) to be merged by Slot
+        {...props} // Spread other props (like variant, size if provided by user)
       >
         {actualButtonChildren}
-      </Slot>
+      </Button>
     );
   }
-
-  // If SidebarTrigger is not asChild, it renders its own Button.
-  return (
-    <Button
-      ref={ref}
-      data-sidebar="trigger"
-      variant="outline"
-      size="icon"
-      className={cn("h-7 w-7 md:h-8 md:w-8", className)}
-      onClick={combinedOnClick}
-      {...props} // Pass other ButtonProps
-    >
-      {actualButtonChildren}
-    </Button>
-  );
-});
+);
 SidebarTrigger.displayName = "SidebarTrigger"
 
 
@@ -564,91 +565,74 @@ export interface SidebarMenuButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     React.AnchorHTMLAttributes<HTMLAnchorElement>,
     VariantProps<typeof sidebarMenuButtonVariants> {
-  asChild?: boolean;
+  asChild?: boolean; // For SidebarMenuButton's own slotting behavior
   isActive?: boolean;
 }
 
 const SidebarMenuButton = React.forwardRef<
-  HTMLElement, // Use a more generic HTMLElement for the ref
+  HTMLAnchorElement | HTMLButtonElement,
   SidebarMenuButtonProps
 >(
-  ({
-    asChild: ownAsChild = false, // This component's decision to be a Slot
-    isActive = false,
-    variant = "default",
-    size = "default",
-    className,
-    children,
-    href, // Will be provided by Link asChild
-    ...restProps // Includes props from parent Slots (like Link's asChild or TooltipTrigger's asChild)
-  }, ref) => {
-    const isLink = typeof href === 'string';
-    
-    // Determine the component type: Slot if ownAsChild is true, 'a' if href is present, otherwise 'button'.
-    const Comp = ownAsChild ? Slot : (isLink ? "a" : "button");
+  (
+    {
+      asChild: ownAsChild = false, // SidebarMenuButton's own asChild prop
+      isActive = false,
+      variant,
+      size,
+      className,
+      children,
+      href: hrefFromDirectProps, // href passed directly to SidebarMenuButton
+      ...restPropsFromParent // Props from parent (e.g., Link asChild, TooltipTrigger asChild)
+    },
+    ref
+  ) => {
+    // Determine the effective href. Props from parent (like Link) take precedence.
+    const hrefFromParent = (restPropsFromParent as any).href;
+    const effectiveHref = hrefFromParent || hrefFromDirectProps;
 
-    // Clone restProps to modify it
-    const elementProps = { ...restProps };
+    // Determine the component type: Slot, <a>, or <button>
+    let Comp: React.ElementType = "button";
+    if (ownAsChild) {
+      Comp = Slot;
+    } else if (effectiveHref) {
+      Comp = "a";
+    }
 
-    // If Comp is a DOM element ('a' or 'button'), we must ensure that any 'asChild' prop
-    // that might have been passed down from a parent (e.g., Link asChild) is removed.
-    // DOM elements do not recognize the 'asChild' prop.
+    // Prepare props for the Comp. Start with restPropsFromParent.
+    const compProps: Record<string, any> = { ...restPropsFromParent };
+
+    // If Comp is a DOM element (<a> or <button>), it should not receive 'asChild'.
+    // The 'asChild' in restPropsFromParent came from the parent (e.g., Link asChild).
+    // It has served its purpose by influencing the parent; it shouldn't be an attribute on the DOM element.
     if (Comp === "a" || Comp === "button") {
-      if (elementProps.asChild !== undefined) {
-        delete elementProps.asChild;
+      if (compProps.asChild !== undefined) {
+        delete compProps.asChild;
+      }
+    }
+
+    // Ensure href is correctly set if Comp is 'a'.
+    // If Comp is 'button' or 'Slot' (for SidebarMenuButton's own children), remove href from compProps
+    // unless 'Comp' is 'Slot' and 'effectiveHref' is present (meaning the Slot's child might need it).
+    // However, for SidebarMenuButton, if ownAsChild is true, its children are the icon/text, not another link.
+    if (Comp === "a") {
+      compProps.href = effectiveHref;
+    } else { // Comp is 'button' or 'Slot' (due to ownAsChild)
+      if (compProps.href !== undefined) {
+        delete compProps.href; 
       }
     }
     
-    const combinedClassName = cn(
-      sidebarMenuButtonVariants({ variant, size, className })
-    );
-
-    if (Comp === "a") {
-      return (
-        <a
-          ref={ref as React.Ref<HTMLAnchorElement>}
-          href={href} // href is explicitly set
-          data-sidebar="menu-button"
-          data-size={size}
-          data-active={isActive}
-          className={combinedClassName}
-          {...elementProps} // Spread other props from parent Slots (onClick, aria-*, etc.)
-        >
-          <React.Fragment>{children}</React.Fragment>
-        </a>
-      );
-    }
-
-    if (Comp === "button") {
-      return (
-        <button
-          ref={ref as React.Ref<HTMLButtonElement>}
-          type={(elementProps as React.ButtonHTMLAttributes<HTMLButtonElement>).type || "button"}
-          data-sidebar="menu-button"
-          data-size={size}
-          data-active={isActive}
-          className={combinedClassName}
-          {...elementProps}
-        >
-          <React.Fragment>{children}</React.Fragment>
-        </button>
-      );
-    }
-
-    // Comp is Slot (ownAsChild was true)
-    // Slot will merge its props with its single ReactElement child.
-    // The children passed to SidebarMenuButton (icon and title fragment) become the children of this Slot.
     return (
-      <Slot
-        ref={ref as React.Ref<any>}
+      <Comp
+        ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        className={combinedClassName}
-        {...elementProps} // Pass all props; Slot handles 'asChild' if it's in elementProps
+        className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
+        {...compProps} // Spread the cleaned and href-adjusted props
       >
-        <React.Fragment>{children}</React.Fragment>
-      </Slot>
+        {children}
+      </Comp>
     );
   }
 );
@@ -819,7 +803,7 @@ export {
   SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
-  type SidebarMenuButtonProps,
+  sidebarMenuButtonVariants,
   SidebarMenuItem,
   SidebarMenuSkeleton,
   SidebarMenuSub,
@@ -831,3 +815,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    
