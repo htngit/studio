@@ -78,7 +78,9 @@ const SidebarProvider = React.forwardRef<
         } else {
           _setOpen(openState)
         }
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        if (typeof document !== 'undefined') {
+          document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+        }
       },
       [setOpenProp, open]
     )
@@ -99,9 +101,10 @@ const SidebarProvider = React.forwardRef<
           toggleSidebar()
         }
       }
-
-      window.addEventListener("keydown", handleKeyDown)
-      return () => window.removeEventListener("keydown", handleKeyDown)
+      if (typeof window !== 'undefined') {
+        window.addEventListener("keydown", handleKeyDown)
+        return () => window.removeEventListener("keydown", handleKeyDown)
+      }
     }, [toggleSidebar])
 
     const state = open ? "expanded" : "collapsed"
@@ -248,29 +251,60 @@ const Sidebar = React.forwardRef<
 Sidebar.displayName = "Sidebar"
 
 const SidebarTrigger = React.forwardRef<
-  React.ElementRef<typeof Button>,
-  React.ComponentProps<typeof Button>
->(({ className, onClick, ...props }, ref) => {
-  const { toggleSidebar } = useSidebar()
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<typeof Button> // Accepts Button props, including asChild
+>(({ 
+  className, 
+  onClick: userOnClick, 
+  children, 
+  asChild, 
+  variant = "ghost", // Default if not asChild
+  size = "icon",    // Default if not asChild
+  ...props 
+}, ref) => {
+  const { toggleSidebar } = useSidebar();
 
-  return (
-    <Button
-      ref={ref}
-      data-sidebar="trigger"
-      variant="ghost"
-      size="icon"
-      className={cn("h-7 w-7", className)}
-      onClick={(event) => {
-        onClick?.(event)
-        toggleSidebar()
-      }}
-      {...props}
-    >
-      <PanelLeft />
-      <span className="sr-only">Toggle Sidebar</span>
-    </Button>
-  )
-})
+  const combinedOnClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    userOnClick?.(event);
+    toggleSidebar();
+  };
+
+  if (asChild) {
+    // If SidebarTrigger itself is a Slot, it clones its child and merges props.
+    // The child is expected to be a single React element.
+    return (
+      <Slot
+        ref={ref}
+        onClick={combinedOnClick}
+        className={className} // className passed to <SidebarTrigger className="...">
+        {...props} // Other props like aria-label, or specific variant/size if child is a Button
+      >
+        {children}
+      </Slot>
+    );
+  } else {
+    // SidebarTrigger renders its own Button.
+    const defaultButtonContent = (
+      <span className="flex items-center justify-center">
+        <PanelLeft />
+        <span className="sr-only">Toggle Sidebar</span>
+      </span>
+    );
+    return (
+      <Button
+        ref={ref}
+        data-sidebar="trigger"
+        variant={variant} // Use provided variant or default "ghost"
+        size={size}       // Use provided size or default "icon"
+        className={cn("h-7 w-7", className)} // Base styles + user-provided className
+        onClick={combinedOnClick}
+        {...props}
+      >
+        {children || defaultButtonContent}
+      </Button>
+    );
+  }
+});
 SidebarTrigger.displayName = "SidebarTrigger"
 
 const SidebarRail = React.forwardRef<
@@ -499,7 +533,7 @@ const SidebarMenuItem = React.forwardRef<
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2",
   {
     variants: {
       variant: {
@@ -520,27 +554,17 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
-const SidebarMenuButton = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentProps<"button"> & {
-    asChild?: boolean;
-    isActive?: boolean;
-  } & VariantProps<typeof sidebarMenuButtonVariants>
->(
-  (
-    {
-      asChild = false,
-      isActive = false,
-      variant = "default",
-      size = "default",
-      className,
-      children,
-      ...props
-    },
-    ref
-  ) => {
-    const Comp = asChild ? Slot : "button";
+export interface SidebarMenuButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof sidebarMenuButtonVariants> {
+  asChild?: boolean;
+  isActive?: boolean;
+}
 
+
+const SidebarMenuButton = React.forwardRef<HTMLButtonElement, SidebarMenuButtonProps>(
+  ({ asChild = false, isActive = false, variant = "default", size = "default", className, children, ...props }, ref) => {
+    const Comp = asChild ? Slot : "button";
     return (
       <Comp
         ref={ref}
@@ -550,8 +574,7 @@ const SidebarMenuButton = React.forwardRef<
         className={cn(sidebarMenuButtonVariants({ variant, size, className }))}
         {...props}
       >
-        {/* This inner span ensures Comp always has one child, and handles flex/gap for icon and text */}
-        <span className="flex w-full items-center gap-2">
+        <span className="flex w-full items-center gap-2 [&>svg]:size-4 [&>svg]:shrink-0 [&>span]:truncate">
           {children}
         </span>
       </Comp>
@@ -717,6 +740,7 @@ export {
   SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
+  type SidebarMenuButtonProps,
   SidebarMenuItem,
   SidebarMenuSkeleton,
   SidebarMenuSub,
@@ -728,3 +752,4 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
